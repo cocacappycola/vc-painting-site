@@ -1,0 +1,30 @@
+name: Deploy to DigitalOcean Droplet
+
+# Runs on every push to the main branch
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Add SSH private key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.DROPLET_SSH_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H "${{ secrets.DROPLET_IP }}" >> ~/.ssh/known_hosts
+
+      - name: Deploy site via rsync
+        run: |
+          rsync -avz --delete \
+            -e "ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no" \
+            --exclude '.git' \
+            --exclude '.github' \
+            --exclude 'README.md' \
+            ./ "${{ secrets.DROPLET_USER }}@${{ secrets.DROPLET_IP }}:/var/www/html/"
